@@ -66,17 +66,27 @@ class WebScrapper
     File.open(filename, 'w') { |f| f.write html }
     page = Nokogiri::HTML.parse(iframe.html)
     relatorio = {}
+    relatorio[:textos] = [] 
     page.css('li.category[level="1"]').each do |criterio_block|
       criterio = criterio_block.css('.categoria').first.text.sub(/(CRITÉRIO \w+).*/,'\1')
-      #puts criterio
+      criterio_text = criterio_block.css('.categoria').first.text.sub(/CRITÉRIO \w+[–\s]+(.*)/,'\1')
+      puts criterio + ' ' + criterio_text
+      texto = { :chave => criterio, :valor => criterio_text }
+      relatorio[:textos].push texto
       relatorio[criterio] = {}
       criterio_block.css('li.category[level="2"]').each do |indicador_block|
         indicador = indicador_block.css('.categoria').first.text.sub(/(INDICADOR \d+).*/,'\1')
-        #puts indicador
+        indicador_text = indicador_block.css('.categoria').first.text.sub(/INDICADOR \d+[\.\s]+(.*)/,'\1')
+        puts indicador + ' ' + indicador_text
+        texto = { :chave => indicador, :valor => indicador_text }
+        relatorio[:textos].push texto
         relatorio[criterio][indicador] = {}
         indicador_block.css('li.question div.block').each do |questao_block|
           questao = questao_block.css('div.number_list').first.text
-          #puts questao
+          questao_text = questao_block.css('h2.nome').first.text
+          puts questao + ' ' + questao_text
+          texto = { :chave => questao, :valor => questao_text }
+          relatorio[:textos].push texto
           relatorio[criterio][indicador][questao] = {}
           questao_block.css('table.choices').each do |alternativa_block|
             niveis = []
@@ -171,21 +181,27 @@ end
 
 def gerar_excel(empresas, filename)
   xlsx = Axlsx::Package.new
+  primeiro_relatorio = empresas.first[:relatorios]
+  textos = primeiro_relatorio[:textos]
+  textos_sheet = xlsx.workbook.add_worksheet(:name => "Textos")
+  textos.each do |texto|
+    textos_sheet.add_row [texto[:chave], texto[:valor]]
+  end
   CATEGORIAS.each do |categoria|
-    puts "Categoria " + categoria
+    #puts "Categoria " + categoria
     sheet = xlsx.workbook.add_worksheet(:name => categoria)
-    template = empresas.first[:relatorios][categoria]
+    template = primeiro_relatorio[categoria]
     template.keys.each do |criterio|
-      puts "Criterio " + criterio
+      #puts "Criterio " + criterio
       indicadores = template[criterio]
       indicadores.keys.each do |indicador|
-        puts "Indicador " + indicador
+        #puts "Indicador " + indicador
         questoes = indicadores[indicador]
         if questoes.nil?
           next
         end
         questoes.keys.each do |questao|
-          puts "Questao " + questao
+          #puts "Questao " + questao
           #sheet.add_row [questao]
           alternativas = questoes[questao]
           unless alternativas.nil?
@@ -194,7 +210,7 @@ def gerar_excel(empresas, filename)
             sheet.add_row [indicador,criterio,questao,"empresa"] + alternativas_array
             empresas.each do |empresa|
               unless empresa[:relatorios].nil? || empresa[:relatorios][categoria].nil?
-                puts empresa[:nome]
+                #puts empresa[:nome]
                 respostas = []
                 unless alternativas.nil?
                   alternativas.keys.each do |alternativa|
@@ -234,7 +250,7 @@ $stdout.sync = true
 #%w(2011 2012 2013 2014 2015).each do |ano|
 %w(2015).each do |ano|
   puts "Extraindo relatorios do ano " + ano
-  #empresas = WebScrapper.new.extrair_relatorios_do_ano(ano)
-  empresas = load_empresas_from_file(ano)
+  empresas = WebScrapper.new.extrair_relatorios_do_ano(ano)
+  # empresas = load_empresas_from_file(ano)
   gerar_excel(empresas, ano + '.xlsx')
 end
