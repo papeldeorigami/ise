@@ -1,15 +1,23 @@
 GEM
   remote: https://rubygems.org/
   specs:
+    activesupport (5.0.0.1)
+      concurrent-ruby (~> 1.0, >= 1.0.2)
+      i18n (~> 0.7)
+      minitest (~> 5.1)
+      tzinfo (~> 1.1)
     axlsx (2.0.1)
       htmlentities (~> 4.3.1)
       nokogiri (>= 1.4.1)
       rubyzip (~> 1.0.0)
     childprocess (0.5.9)
       ffi (~> 1.0, >= 1.0.11)
+    concurrent-ruby (1.0.2)
     ffi (1.9.14)
     htmlentities (4.3.4)
+    i18n (0.7.0)
     mini_portile2 (2.0.0)
+    minitest (5.9.0)
     nokogiri (1.6.7.2)
       mini_portile2 (~> 2.0.0.rc2)
     rubyzip (1.0.0)
@@ -17,6 +25,9 @@ GEM
       childprocess (~> 0.5)
       rubyzip (~> 1.0)
       websocket (~> 1.0)
+    thread_safe (0.3.5)
+    tzinfo (1.2.2)
+      thread_safe (~> 0.1)
     watir-webdriver (0.9.3)
       selenium-webdriver (>= 2.46.2)
     websocket (1.2.3)
@@ -25,6 +36,7 @@ PLATFORMS
   ruby
 
 DEPENDENCIES
+  activesupport (~> 5.0)
   axlsx
   nokogiri (~> 1.6.7.2)
   watir-webdriver (~> 0.9.1)

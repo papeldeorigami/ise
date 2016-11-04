@@ -5,6 +5,7 @@ require 'nokogiri'
 require 'axlsx'
 require 'fileutils'
 require 'json'
+require 'active_support/core_ext/hash'
 
 BASE_URL = ENV['BASE_URL']
 DESTINATION_DIR = ENV['DESTINATION_DIR']
@@ -66,28 +67,24 @@ class WebScrapper
     File.open(filename, 'w') { |f| f.write html }
     page = Nokogiri::HTML.parse(iframe.html)
     relatorio = {}
-    relatorio[:textos] = [] 
     page.css('li.category[level="1"]').each do |criterio_block|
       criterio = criterio_block.css('.categoria').first.text.sub(/(CRITÉRIO \w+).*/,'\1')
       criterio_text = criterio_block.css('.categoria').first.text.sub(/CRITÉRIO \w+[–\s]+(.*)/,'\1')
       puts criterio + ' ' + criterio_text
-      texto = { :chave => criterio, :valor => criterio_text }
-      relatorio[:textos].push texto
       relatorio[criterio] = {}
+      relatorio[criterio]["texto"] = criterio_text
       criterio_block.css('li.category[level="2"]').each do |indicador_block|
         indicador = indicador_block.css('.categoria').first.text.sub(/(INDICADOR \d+).*/,'\1')
         indicador_text = indicador_block.css('.categoria').first.text.sub(/INDICADOR \d+[\.\s]+(.*)/,'\1')
         puts indicador + ' ' + indicador_text
-        texto = { :chave => indicador, :valor => indicador_text }
-        relatorio[:textos].push texto
         relatorio[criterio][indicador] = {}
+				relatorio[criterio][indicador]["texto"] = indicador_text
         indicador_block.css('li.question div.block').each do |questao_block|
           questao = questao_block.css('div.number_list').first.text
           questao_text = questao_block.css('h2.nome').first.text
           puts questao + ' ' + questao_text
-          texto = { :chave => questao, :valor => questao_text }
-          relatorio[:textos].push texto
           relatorio[criterio][indicador][questao] = {}
+					relatorio[criterio][indicador][questao]["texto"] = questao_text
           questao_block.css('table.choices').each do |alternativa_block|
             niveis = []
             alternativa_block.css('thead > tr > th').each do |nivel_block|
@@ -182,27 +179,28 @@ end
 def gerar_excel(empresas, filename)
   xlsx = Axlsx::Package.new
   primeiro_relatorio = empresas.first[:relatorios]
-  textos = primeiro_relatorio[:textos]
-  textos_sheet = xlsx.workbook.add_worksheet(:name => "Textos")
-  textos.each do |texto|
-    textos_sheet.add_row [texto[:chave], texto[:valor]]
-  end
+	textos_sheet = xlsx.workbook.add_worksheet(:name => "Textos")
+	textos_sheet.add_row ["categoria","criterio","indicador","questao","texto"]
+r87504
   CATEGORIAS.each do |categoria|
-    #puts "Categoria " + categoria
+    puts "Categoria " + categoria
     sheet = xlsx.workbook.add_worksheet(:name => categoria)
-    template = primeiro_relatorio[categoria]
-    template.keys.each do |criterio|
-      #puts "Criterio " + criterio
-      indicadores = template[criterio]
-      indicadores.keys.each do |indicador|
-        #puts "Indicador " + indicador
+    criterios = primeiro_relatorio[categoria]
+    criterios.keys.drop(1).each do |criterio|
+      puts "Criterio " + criterio
+			textos_sheet.add_row [categoria,criterio,"","",criterio["texto"]]
+      indicadores = criterios[criterio]
+      indicadores.keys.drop(1).each do |indicador|
+        puts "Indicador " + indicador
+				textos_sheet.add_row [categoria,criterio,indicador,"",indicador["texto"]]
         questoes = indicadores[indicador]
         if questoes.nil?
           next
         end
-        questoes.keys.each do |questao|
-          #puts "Questao " + questao
+        questoes.keys.drop(1).each do |questao|
+          puts "Questao " + questao
           #sheet.add_row [questao]
+					textos_sheet.add_row [categoria,criterio,indicador,questao,questao["texto"]]
           alternativas = questoes[questao]
           unless alternativas.nil?
             alternativas_array = alternativas.keys
@@ -238,19 +236,15 @@ end
 def load_empresas_from_file(ano)
   file = File.read('relatorios_' + ano + '.json')
   empresas = JSON.parse(file)
-  empresas.each do |empresa|
-    empresa.keys.each do |key|
-      empresa[(key.to_sym rescue key) || key] = empresa.delete(key)
-    end
-  end
+	empresas.each(&:symbolize_keys!)
   return empresas
 end
 
 $stdout.sync = true
 #%w(2011 2012 2013 2014 2015).each do |ano|
-%w(2015).each do |ano|
+%w(2015).each do |ano|puts
   puts "Extraindo relatorios do ano " + ano
   empresas = WebScrapper.new.extrair_relatorios_do_ano(ano)
-  # empresas = load_empresas_from_file(ano)
+  #empresas = load_empresas_from_file(ano)
   gerar_excel(empresas, ano + '.xlsx')
 end
