@@ -1,6 +1,9 @@
 relatorios/
 *.xlsx
 *json
+*.log
+
+/backup
 
 # ignore local env file (see .env.example for a template)
 .env
